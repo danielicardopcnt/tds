@@ -313,65 +313,69 @@ defmodule Tds.Types do
   # ByteLength Types
   def decode_data(%{data_reader: :bytelen}, <<0x00, tail::binary>>), do: {nil, tail}
   def decode_data(%{data_type_code: data_type_code, data_reader: :bytelen, length: length} = data_info, <<size::unsigned-8, data::binary-size(size), tail::binary>>) do
-      value = cond do
-        data_type_code == @tds_data_type_daten -> decode_date(data)
-        data_type_code == @tds_data_type_timen -> decode_time(data_info[:scale], data)
-        data_type_code == @tds_data_type_datetime2n -> decode_datetime2(data_info[:scale], data)
-        data_type_code == @tds_data_type_datetimeoffsetn -> decode_datetimeoffset(data_info[:scale], data)
-        data_type_code == @tds_data_type_uniqueidentifier -> decode_uuid(data)
+      {value, tail} = cond do
+        data_type_code == @tds_data_type_daten -> {decode_date(data), tail}
+        data_type_code == @tds_data_type_timen -> {decode_time(data_info[:scale], data), tail}
+        data_type_code == @tds_data_type_datetime2n -> {decode_datetime2(data_info[:scale], data), tail}
+        data_type_code == @tds_data_type_datetimeoffsetn -> {decode_datetimeoffset(data_info[:scale], data), tail}
+        data_type_code == @tds_data_type_uniqueidentifier -> {decode_uuid(data), tail}
         data_type_code == @tds_data_type_intn ->
           data = data <> tail
-          case length do
+          {value, tail} = case length do
             1 ->
               <<value::unsigned-8, tail::binary>> = data
-              value
+              {value, tail}
             2 ->
               <<value::little-signed-16, tail::binary>> = data
-              value
+              {value, tail}
             4 ->
               <<value::little-signed-32, tail::binary>> = data
-              value
+              {value, tail}
             8 ->
               <<value::little-signed-64, tail::binary>> = data
-              value
+              {value, tail}
           end
+          {value, tail}
         data_type_code in [
           @tds_data_type_decimal,
           @tds_data_type_numeric,
           @tds_data_type_decimaln,
           @tds_data_type_numericn
         ] ->
-          decode_decimal(data_info[:precision], data_info[:scale], data)
+          {decode_decimal(data_info[:precision], data_info[:scale], data), tail}
         data_type_code == @tds_data_type_bitn ->
-          data != <<0x00>>
+          {data != <<0x00>>, tail}
         data_type_code == @tds_data_type_floatn ->
           data = data <> tail
-          case length do
+          {value, tail} = case length do
             4 ->
               <<value::little-float-32, tail::binary>> = data
-              value
+              {value, tail}
             8 ->
               <<value::little-float-64, tail::binary>> = data
-              value
+              {value, tail}
           end
+          {value, tail}
         data_type_code == @tds_data_type_moneyn ->
-          case length do
+          value = case length do
             4 -> decode_smallmoney(data)
             8 -> decode_money(data)
           end
+          {value, tail}
         data_type_code == @tds_data_type_datetimen ->
-          case length do
+          value = case length do
             4 -> decode_smalldatetime(data)
             8 -> decode_datetime(data)
           end
+          {value, tail}
         data_type_code in [
           @tds_data_type_char,
           @tds_data_type_varchar
-        ] -> decode_char(data_info[:collation], data)
+        ] -> {decode_char(data_info[:collation], data), tail}
         data_type_code in [
           @tds_data_type_binary,
           @tds_data_type_varbinary
-        ] -> data
+        ] -> {data, tail}
       end
       {value, tail}
   end

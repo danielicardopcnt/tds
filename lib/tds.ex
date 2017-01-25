@@ -77,6 +77,11 @@ defmodule Tds do
      end
   end
 
+  def handle_deallocate(_query, _cursor, _opts, state), do: {:ok, [], state}
+  def handle_declare(_query, cursor, _opts, state), do: {:ok, cursor, state}
+  def handle_first(_query, _cursor, _opts, state), do: {:ok, [], state}
+  def handle_next(_query, _cursor, _opts, state), do: {:ok, [], state}
+
   defdelegate rollback(conn, any), to: DBConnection
 
   def child_spec(opts) do
