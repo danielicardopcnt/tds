@@ -30,8 +30,8 @@ defmodule Tds.Mixfile do
   # Type `mix help deps` for more examples and options
   defp deps do
     [
-      {:decimal, "~> 1.1"},
-      {:db_connection, "~> 1.0-rc"}
+      {:decimal, "~> 1.3"},
+      {:db_connection, "~> 1.1"}
     ]
   end
 

@@ -61,7 +61,7 @@ defmodule Tds.Protocol do
 
     {:ok, s}
   end
-  
+
   def checkout(%{sock: {mod, sock}} = s) do
     :ok = :inet.setopts(sock, [active: false])
 
@@ -134,7 +134,7 @@ defmodule Tds.Protocol do
     host      = Keyword.fetch!(opts, :hostname)
     host      = if is_binary(host), do: String.to_char_list(host), else: host
     port      = s.itcp || opts[:port] || System.get_env("MSSQLPORT") || 1433
-    if is_binary(port), do: {port, _} = Integer.parse(port)
+    port      = if is_binary(port), do: {port, _} = Integer.parse(port), else: port
     timeout   = opts[:timeout] || @timeout
     sock_opts = [{:active, false}, :binary, {:packet, :raw}, {:delay_send, false}] ++ (opts[:socket_options] || [])
 
@@ -148,7 +148,7 @@ defmodule Tds.Protocol do
         # :socket_options.
         {:ok, [sndbuf: sndbuf, recbuf: recbuf, buffer: buffer]} =
           :inet.getopts(sock, [:sndbuf, :recbuf, :buffer])
-          
+
         buffer = buffer
         |> max(sndbuf)
         |> max(recbuf)
@@ -367,24 +367,6 @@ defmodule Tds.Protocol do
   #  {:ok, %{s | statement: nil, state: :ready}}
   #end
 
-  def send_param_query(%Query{handle: handle} = query, params, s) do
-    params = [
-      %Tds.Parameter{name: "@handle", type: :integer, direction: :input, value: handle}
-      | params
-    ]
-
-    # msg = msg_rpc(proc: :sp_executesql, params: params)
-    msg = msg_rpc(proc: :sp_execute, params: params)
-
-    case msg_send(msg, s) do
-      {:ok, %{result: result} = s} ->
-        {:ok, result, %{s | state: :ready}}
-      {:error, err, %{transaction: :started} = s} ->
-        {:error, err, %{s | transaction: :failed}}
-      err ->
-        err
-    end
-  end
   def send_param_query(%Query{handle: handle} = query, params, %{transaction: :started} = s) do
     params = [
       %Tds.Parameter{name: "@handle", type: :integer, direction: :input, value: handle}
@@ -395,6 +377,25 @@ defmodule Tds.Protocol do
     msg = msg_rpc(proc: :sp_execute, params: params)
 
     case msg_cast(msg, s) do
+      {:ok, %{result: result} = s} ->
+        {:ok, result, %{s | state: :ready}}
+      {:error, err, %{transaction: :started} = s} ->
+        {:error, err, %{s | transaction: :failed}}
+      err ->
+        err
+    end
+  end
+
+  def send_param_query(%Query{handle: handle} = query, params, s) do
+    params = [
+      %Tds.Parameter{name: "@handle", type: :integer, direction: :input, value: handle}
+      | params
+    ]
+
+    # msg = msg_rpc(proc: :sp_executesql, params: params)
+    msg = msg_rpc(proc: :sp_execute, params: params)
+
+    case msg_send(msg, s) do
       {:ok, %{result: result} = s} ->
         {:ok, result, %{s | state: :ready}}
       {:error, err, %{transaction: :started} = s} ->
@@ -464,16 +465,14 @@ defmodule Tds.Protocol do
   ## executing
 
   def message(:executing, msg_sql_result(columns: columns, rows: rows, done: done), %{} = s) do
-    if columns != nil do
+    columns = if columns != nil do
       columns = Enum.reduce(columns, [], fn (col, acc) -> [col[:name]|acc] end) |> Enum.reverse
+    else
+      columns
     end
     num_rows = done.rows;
-    if rows != nil do
-      rows = Enum.reverse rows
-    end
-    if num_rows == 0 && rows == nil do
-      rows = []
-    end
+    rows = (if rows != nil, do: Enum.reverse(rows), else: rows)
+    rows = (if num_rows == 0 && rows == nil, do: [], else: rows)
 
     result = %Tds.Result{columns: columns, rows: rows, num_rows: num_rows}
 
