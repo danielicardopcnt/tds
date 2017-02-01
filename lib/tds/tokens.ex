@@ -206,7 +206,12 @@ defmodule Tds.Tokens do
   end
 
   ## DONEINPROC
-  defp decode_token(<<@tds_token_doneinproc, status::int16, cur_cmd::binary(2), row_count::little-size(8)-unit(8), _something::binary-size(5), tail::binary>>, tokens) do
+  defp decode_token(<<@tds_token_doneinproc, status::int16, cur_cmd::binary(2), row_count::little-size(8)-unit(8), @tds_token_doneinproc, tail::binary>>, tokens) do
+    decode_token(<<@tds_token_doneinproc>> <> tail, tokens)
+  end
+
+  defp decode_token(<<@tds_token_doneinproc, status::int16, cur_cmd::binary(2), row_count::little-size(8)-unit(8), something::binary-size(5), tail::binary>>, tokens) do
+    # IO.puts("3            STATUS: #{inspect status}\nCUR_CMD: #{inspect cur_cmd}\nROW_COUNT: #{inspect row_count}\nSOMETHING: #{inspect something}\nTAIL: #{inspect tail}\nTOKENS: #{inspect tokens}")
     case tokens do
       [done: done] ->
         cond do
