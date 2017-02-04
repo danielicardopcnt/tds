@@ -139,7 +139,7 @@ defmodule Tds.Tokens do
     column_count = Enum.count tokens[:columns]
     {bitmap_bytes, _} = column_count / 8
       |> Float.ceil
-      |> Float.to_char_list([decimals: 0])
+      |> :erlang.float_to_list([decimals: 0])
       |> to_string
       |> Integer.parse
 
@@ -179,10 +179,9 @@ defmodule Tds.Tokens do
   end
 
   ## DONE
-  defp decode_token(<<@tds_token_done, status::int16, cur_cmd::binary(2), row_count::little-size(8)-unit(8), _tail::binary>>, tokens) do
+  defp decode_token(<<@tds_token_done, status::int16, cur_cmd::binary(2), row_count::little-size(8)-unit(8), _tail::binary>> = t, tokens) do
     case tokens do
       [done: done] ->
-
         cond do
           row_count > done.rows -> {[done: %{status: status, cmd: cur_cmd, rows: row_count}] ++ tokens, nil}
           true -> {tokens, nil}
@@ -210,8 +209,11 @@ defmodule Tds.Tokens do
     decode_token(<<@tds_token_doneinproc>> <> tail, tokens)
   end
 
-  defp decode_token(<<@tds_token_doneinproc, status::int16, cur_cmd::binary(2), row_count::little-size(8)-unit(8), something::binary-size(5), tail::binary>>, tokens) do
-    # IO.puts("3            STATUS: #{inspect status}\nCUR_CMD: #{inspect cur_cmd}\nROW_COUNT: #{inspect row_count}\nSOMETHING: #{inspect something}\nTAIL: #{inspect tail}\nTOKENS: #{inspect tokens}")
+  defp decode_token(<<@tds_token_doneinproc, status::int16, cur_cmd::binary(2),
+      row_count::little-size(8)-unit(8), something::binary-size(5), tail::binary>>,
+      tokens) do
+    IO.inspect(something)
+    IO.inspect(tail)
     case tokens do
       [done: done] ->
         cond do

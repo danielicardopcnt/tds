@@ -36,9 +36,7 @@ defmodule Tds.Query do
       do_decode(rows, mapper, decoded)
     end
 
-    def do_decode(_, _, decoded) do
-      decoded
-    end
+    def do_decode(_, _, decoded), do: decoded
 
     def parse(params, _) do
       params

@@ -522,6 +522,8 @@ defmodule Tds.Types do
       :smalldatetime -> encode_smalldatetime_type(param)
       :datetime2 -> encode_datetime2_type(param)
       :datetimeoffset -> encode_datetimeoffset_type(param)
+      :naive_datetime -> encode_smalldatetime_type(param)
+      :utc_datetime -> encode_datetime2_type(param)
       :date -> encode_date_type(param)
       :time -> encode_time_type(param)
       :uuid -> encode_uuid_type(param)
@@ -784,6 +786,8 @@ defmodule Tds.Types do
       :uuid -> "uniqueidentifier"
       :datetime -> "datetime"
       :datetime2 -> "datetime2"
+      :naive_datetime -> "smalldatetime"
+      :utc_datetime -> "datetime2"
       :datetimeoffset ->  "datetimeoffset"
       :date -> "date"
       :time -> "time"

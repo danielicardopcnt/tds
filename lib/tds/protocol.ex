@@ -470,9 +470,10 @@ defmodule Tds.Protocol do
     else
       columns
     end
-    num_rows = done.rows;
+
+    num_rows = done.rows
     rows = (if rows != nil, do: Enum.reverse(rows), else: rows)
-    rows = (if num_rows == 0 && rows == nil, do: [], else: rows)
+    rows = (if num_rows == 0 && rows == nil, do: nil, else: rows)
 
     result = %Tds.Result{columns: columns, rows: rows, num_rows: num_rows}
 

@@ -91,7 +91,6 @@ defmodule Tds.Messages do
   def parse(:executing, @tds_pack_reply, _header, tail) do
     tokens = []
     tokens = decode_tokens(tail, tokens)
-
     case tokens do
       [error: error] ->
         msg_error(e: error)
