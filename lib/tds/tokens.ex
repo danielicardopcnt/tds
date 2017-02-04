@@ -205,13 +205,15 @@ defmodule Tds.Tokens do
   end
 
   ## DONEINPROC
-  defp decode_token(<<@tds_token_doneinproc, status::int16, cur_cmd::binary(2), row_count::little-size(8)-unit(8), @tds_token_doneinproc, tail::binary>>, tokens) do
+  defp decode_token(<<@tds_token_doneinproc, status::int16, cur_cmd::binary(2),
+      row_count::little-size(8)-unit(8), @tds_token_doneinproc, tail::binary>>, tokens) do
     decode_token(<<@tds_token_doneinproc>> <> tail, tokens)
   end
 
   defp decode_token(<<@tds_token_doneinproc, status::int16, cur_cmd::binary(2),
       row_count::little-size(8)-unit(8), something::binary-size(5), tail::binary>>,
       tokens) do
+    IO.inspect(status)
     IO.inspect(something)
     IO.inspect(tail)
     case tokens do
