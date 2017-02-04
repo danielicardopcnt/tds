@@ -211,11 +211,9 @@ defmodule Tds.Tokens do
   end
 
   defp decode_token(<<@tds_token_doneinproc, status::int16, cur_cmd::binary(2),
-      row_count::little-size(8)-unit(8), something::binary-size(5), tail::binary>>,
+      row_count::little-size(8)-unit(8), something::binary-size(5), tail::binary>> = full,
       tokens) do
-    IO.inspect(status)
-    IO.inspect(something)
-    IO.inspect(tail)
+    IO.inspect(full, limit: :infinity)
     case tokens do
       [done: done] ->
         cond do
