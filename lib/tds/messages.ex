@@ -7,6 +7,7 @@ defmodule Tds.Messages do
 
   require Bitwise
 
+  defrecord :msg_copy_data, [:data]
   defrecord :msg_prelogin, [:params]
   defrecord :msg_login, [:params]
   defrecord :msg_login_ack, [:type, :data]
@@ -109,7 +110,7 @@ defmodule Tds.Messages do
 
   ## Encoders
 
-  def encode_msg(msg, env) do
+  def encode_msg(msg, env \\ nil) do
     encode(msg, env)
   end
 

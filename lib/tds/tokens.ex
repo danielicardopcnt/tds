@@ -206,21 +206,21 @@ defmodule Tds.Tokens do
 
   ## DONEINPROC
   defp decode_token(<<@tds_token_doneinproc, status::int16, cur_cmd::binary(2),
-      row_count::little-size(8)-unit(8), @tds_token_doneinproc, tail::binary>>, tokens) do
+      row_count::little-size(8)-unit(8), @tds_token_doneinproc, tail::binary>>,
+      tokens) do
     decode_token(<<@tds_token_doneinproc>> <> tail, tokens)
   end
 
   defp decode_token(<<@tds_token_doneinproc, status::int16, cur_cmd::binary(2),
-      row_count::little-size(8)-unit(8), something::binary-size(5), tail::binary>> = full,
+      row_count::little-size(8)-unit(8), something::binary-size(5), tail::binary>>,
       tokens) do
-    IO.inspect(full, limit: :infinity)
     case tokens do
       [done: done] ->
         cond do
           row_count > done.rows -> {[done: %{status: status, cmd: cur_cmd, rows: row_count}] ++ tokens, nil}
           true -> {tokens, tail}
         end
-        {tokens, nil}
+      {tokens, nil}
       _ ->  {[done: %{status: status, cmd: cur_cmd, rows: row_count}] ++ tokens, tail}
     end
   end

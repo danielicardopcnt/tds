@@ -1,7 +1,7 @@
 defmodule Tds.Query do
   alias Tds.Parameter
 
-  defstruct [:statement, :handle]
+  defstruct [:statement, :handle, :name]
 
   defimpl DBConnection.Query, for: Tds.Query do
     def encode(statement, [], opts) do
