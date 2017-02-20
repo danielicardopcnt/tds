@@ -25,7 +25,8 @@ defmodule Tds.Protocol do
     result: nil,
     query: nil,
     transaction: nil,
-    env: %{trans: <<0x00>>}
+    env: %{trans: <<0x00>>},
+    last_packet: true
   ]
 
   def connect(opts) do
@@ -214,7 +215,6 @@ defmodule Tds.Protocol do
     {:ok, s}
   end
 
-
   #no data to process
   defp new_data(<<_data::0>>, s) do
     {:ok, s}
@@ -265,11 +265,11 @@ defmodule Tds.Protocol do
             end
           _ ->
             #not the last packet of message, more packets coming with new packet header
-            new_data(tail, %{s | pak_header: "", pak_data: pak_data <> data})
+            new_data(tail, %{s | pak_header: "", pak_data: pak_data <> data, last_packet: false})
         end
       _ ->
         #size specified in packet header still unsatisfied, wait for more data
-        {:ok, %{s | tail: data, pak_header: pak_header}}
+        {:ok, %{s | pak_data: pak_data <> data, pak_header: pak_header, last_packet: false}}
     end
   end
 
@@ -525,11 +525,22 @@ defmodule Tds.Protocol do
       mod.send(sock, pak)
     end)
 
-    case :gen_tcp.recv(sock, 0) do
+    i = do_recv(sock, s)
+    IO.puts("A8 msg: #{inspect i, limit: :infinity}")
+    i
+  end
+
+  defp do_recv(sock, state) do
+    recvd = :gen_tcp.recv(sock, 0)
+    IO.puts("RECEIVED #{inspect recvd, limit: :infinity}")
+    case recvd do
       {:ok, msg} ->
-        new_data(msg, %{s | state: :executing, pak_header: ""})
+        case new_data(msg, %{state | state: :executing, pak_header: ""}) do
+          {:ok, %Tds.Protocol{last_packet: false}} -> do_recv(sock, state)
+          result -> result
+        end
       {:error, exception} ->
-        {:disconnect, exception, s}
+        {:disconnect, exception, state}
     end
   end
 
