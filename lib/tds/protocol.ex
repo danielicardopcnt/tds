@@ -241,10 +241,13 @@ defmodule Tds.Protocol do
     end
   end
 
+  defp new_data(<<data::binary>>, %{tail: tail, last_packet: false} = s) when byte_size(tail) > 0 do
+    new_data(tail <> data, %{s | last_packet: true})
+  end
+
   defp new_data(<<data::binary>>, %{state: state, pak_header: pak_header, pak_data: pak_data} = s) do
     <<type::int8, status::int8, size::int16, _head_rem::int32>> = pak_header
     size = size - 8 #size includes packet header
-
     case data do
       <<data::binary(size), tail::binary>> ->
         #satisfied size specified in packet header
@@ -256,10 +259,10 @@ defmodule Tds.Protocol do
             case message(state, msg, s) do
               {:ok, s} ->
                 #message processed, reset header and msg buffer, then process tail
-                new_data(tail, %{s | pak_header: "", pak_data: ""})
+                new_data(tail, %{s | pak_header: "", pak_data: "", last_packet: true})
               {:ok, _result, s} ->
                 # send_query returns a result
-                new_data(tail, %{s | pak_header: "", pak_data: ""})
+                new_data(tail, %{s | pak_header: "", pak_data: "", last_packet: true})
               {:error, _, _} = err ->
                 err
             end
@@ -269,7 +272,7 @@ defmodule Tds.Protocol do
         end
       _ ->
         #size specified in packet header still unsatisfied, wait for more data
-        {:ok, %{s | pak_data: pak_data <> data, pak_header: pak_header, last_packet: false}}
+        {:ok, %{s | tail: data, pak_header: pak_header, last_packet: false}}
     end
   end
 
@@ -525,18 +528,16 @@ defmodule Tds.Protocol do
       mod.send(sock, pak)
     end)
 
-    i = do_recv(sock, s)
-    IO.puts("A8 msg: #{inspect i, limit: :infinity}")
-    i
+    do_recv(sock, %{s | state: :executing, pak_header: ""})
   end
 
   defp do_recv(sock, state) do
     recvd = :gen_tcp.recv(sock, 0)
-    IO.puts("RECEIVED #{inspect recvd, limit: :infinity}")
     case recvd do
       {:ok, msg} ->
-        case new_data(msg, %{state | state: :executing, pak_header: ""}) do
-          {:ok, %Tds.Protocol{last_packet: false}} -> do_recv(sock, state)
+        case new_data(msg, state) do
+          {:ok, %Tds.Protocol{last_packet: false} = s} ->
+            do_recv(sock, s)
           result -> result
         end
       {:error, exception} ->
