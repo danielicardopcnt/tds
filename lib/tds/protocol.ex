@@ -25,8 +25,7 @@ defmodule Tds.Protocol do
     result: nil,
     query: nil,
     transaction: nil,
-    env: %{trans: <<0x00>>},
-    last_packet: true
+    env: %{trans: <<0x00>>}
   ]
 
   def connect(opts) do
@@ -216,9 +215,7 @@ defmodule Tds.Protocol do
   end
 
   #no data to process
-  defp new_data(<<_data::0>>, s) do
-    {:ok, s}
-  end
+  defp new_data(<<_data::0>>, s), do: {:ok, s}
 
   #DONE_ATTN The DONE message is a server acknowledgement of a client ATTENTION message.
   defp new_data(<<0xFD, 0x20, _cur_cmd::binary(2), 0::size(8)-unit(8), _tail::binary>>, %{state: :attn} = s) do
@@ -241,10 +238,6 @@ defmodule Tds.Protocol do
     end
   end
 
-  defp new_data(<<data::binary>>, %{tail: tail, last_packet: false} = s) when byte_size(tail) > 0 do
-    new_data(tail <> data, %{s | last_packet: true})
-  end
-
   defp new_data(<<data::binary>>, %{state: state, pak_header: pak_header, pak_data: pak_data} = s) do
     <<type::int8, status::int8, size::int16, _head_rem::int32>> = pak_header
     size = size - 8 #size includes packet header
@@ -259,20 +252,22 @@ defmodule Tds.Protocol do
             case message(state, msg, s) do
               {:ok, s} ->
                 #message processed, reset header and msg buffer, then process tail
-                new_data(tail, %{s | pak_header: "", pak_data: "", last_packet: true})
+                new_data(tail, %{s | pak_header: "", pak_data: ""})
               {:ok, _result, s} ->
                 # send_query returns a result
-                new_data(tail, %{s | pak_header: "", pak_data: "", last_packet: true})
+                new_data(tail, %{s | pak_header: "", pak_data: ""})
               {:error, _, _} = err ->
                 err
             end
           _ ->
+            IO.puts("AAAAAAAAAAAAA")
             #not the last packet of message, more packets coming with new packet header
-            new_data(tail, %{s | pak_header: "", pak_data: pak_data <> data, last_packet: false})
+            new_data(tail, %{s | pak_header: "", pak_data: pak_data <> data})
         end
       _ ->
+        IO.puts("BBBBBBBBBBBBBBB")
         #size specified in packet header still unsatisfied, wait for more data
-        {:ok, %{s | tail: data, pak_header: pak_header, last_packet: false}}
+        {:ok, %{s | tail: data, pak_header: pak_header}}
     end
   end
 
@@ -531,13 +526,12 @@ defmodule Tds.Protocol do
     do_recv(sock, %{s | state: :executing, pak_header: ""})
   end
 
-  defp do_recv(sock, state) do
-    recvd = :gen_tcp.recv(sock, 0)
-    case recvd do
+  defp do_recv(sock, %{tail: tail} = state) do
+    case :gen_tcp.recv(sock, 0) do
       {:ok, msg} ->
-        case new_data(msg, state) do
-          {:ok, %Tds.Protocol{last_packet: false} = s} ->
-            do_recv(sock, s)
+        case new_data(tail <> msg, %{state | tail: ""}) do
+          {:ok, %Tds.Protocol{tail: <<_,_::binary>>} = s} -> do_recv(sock, s)
+          {:ok, %Tds.Protocol{pak_data: <<_,_::binary>>} = s} -> do_recv(sock, s)
           result -> result
         end
       {:error, exception} ->

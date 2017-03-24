@@ -24,12 +24,16 @@ defmodule QueryTest do
         Real real,
         Money money,
         DateTime datetime,
+        DateTime2 datetime2,
         Float float,
         SmallMoney smallmoney,
         BitInt bigint)
       """, [])
-    query("INSERT INTO FixedLength VALUES(1, 0, 12, 100, '2014-01-10T12:30:00', 0.5, '-822,337,203,685,477.5808', '2014-01-11T11:34:25', 5.6, '$-214,748.3648', 1000)", []);
-    assert [[1, false, 12, 100, {{2014, 01, 10},{12, 30, 0, 0}}, 0.5, -822_337_203_685_477.5808, {{2014, 01, 11},{11, 34, 25, 0}}, 5.6, -214_748.3648 , 1000]] == query("SELECT TOP(1) * FROM FixedLength", [])
+    query("INSERT INTO FixedLength VALUES(1, 0, 12, 100, '2014-01-10T12:30:00', 0.5, '-822,337,203,685,477.5808',
+      '2014-01-11T11:34:25', '2014-01-11T11:34:25.233', 5.6, '$-214,748.3648', 1000)", []);
+    assert [[1, false, 12, 100, {{2014, 01, 10},{12, 30, 0, 0}}, 0.5, -822_337_203_685_477.5808,
+      {{2014, 01, 11},{11, 34, 25, 0}}, {{2014, 1, 11}, {11, 34, 25, 2330000}},
+      5.6, -214_748.3648 , 1000]] == query("SELECT TOP(1) * FROM FixedLength", [])
 
     query("DROP TABLE FixedLength", [])
   end
@@ -91,4 +95,13 @@ defmodule QueryTest do
     assert [[nil]] = query("SELECT CAST(NULL as nvarchar(255))",[])
   end
 
+  test "schema insert", context do
+    query("DROP TABLE MyTable", [])
+    assert :ok = query("CREATE TABLE MyTable (version bigint NOT NULL PRIMARY KEY, inserted_at datetime NULL)", [])
+    assert :ok = query("INSERT INTO MyTable (version,inserted_at) VALUES (@1,@2)",
+      [%Tds.Parameter{direction: :input, name: "@1", type: nil, value: 0},
+      %Tds.Parameter{direction: :input, name: "@2", type: nil, value: {{2017, 3, 22}, {2, 6, 5, 750168}}}])
+    assert [[0, {_date, _time}]] = query("SELECT version, inserted_at FROM MyTable",[])
+    query("DROP TABLE MyTable", [])
+  end
 end
